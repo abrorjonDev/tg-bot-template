@@ -1,0 +1,68 @@
+services:
+  ecom_backend_dev:
+    container_name: ecom-backend-dev
+    build:
+      context: .
+      dockerfile: ./docker/dev/Dockerfile
+    command: python3 manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/usr/src/backend/
+    ports:
+      - 8000:8000
+    env_file:
+      - .env
+    depends_on:
+      - ecom_db_dev
+    networks:
+      - ecom_network_dev
+
+  ecom_db_dev:
+    image: postgres:15
+    container_name: ecom-db-dev
+    volumes:
+      - ecom_postgres_data_dev:/var/lib/postgresql/data/
+    env_file:
+      - .env
+    ports:
+      - 5432:5432
+    networks:
+      - ecom_network_dev
+
+  ecom_redis_dev:
+    image: redis:7.2
+    container_name: ecom-redis-dev
+    networks:
+      - ecom_network_dev
+
+  ecom_celery_worker_dev:
+    build:
+      context: .
+      dockerfile: ./docker/dev/Dockerfile
+    container_name: ecom-celery-worker-dev
+    env_file:
+      - .env
+    command: celery -A config worker --concurrency=3 --loglevel DEBUG -P threads
+    depends_on:
+      - ecom_redis_dev
+      - ecom_db_dev
+    networks:
+      - ecom_network_dev
+
+  ecom_celery_beat_dev:
+    build:
+      context: .
+      dockerfile: ./docker/dev/Dockerfile
+    container_name: ecom-celery-beat-dev
+    env_file:
+      - .env
+    command: celery -A config beat --pidfile= --loglevel DEBUG
+    depends_on:
+      - ecom_redis_dev
+      - ecom_db_dev
+    networks:
+      - ecom_network_dev
+
+volumes:
+  ecom_postgres_data_dev:
+networks:
+  ecom_network_dev:
